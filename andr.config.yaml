@@ -1,0 +1,40 @@
+# andr_bot — ANDR project configuration
+#
+# Start with: python start.py
+#             or: andr start --model llama3.2
+
+# LLM settings
+llm:
+  backend: ollama            # ollama | openai
+  model: llama3.2            # model name
+  host: http://localhost:11434
+  temperature: 0.2
+
+# Agent settings
+agent:
+  max_iterations: 20
+
+# Task brain (scheduler, preemption, wander)
+brain:
+  enabled: true
+  enable_wander: false           # Send idle prompts when no tasks pending
+  wander_interval_sec: 60.0     # Seconds between wander prompts
+  resume_preempted: true         # Resume interrupted tasks after higher-priority ones finish
+
+# Scheduled tasks (run automatically on a timer)
+# scheduled_tasks:
+#   check_battery:
+#     prompt: "Check your battery level and report it."
+#     interval_sec: 300
+#   patrol:
+#     prompt: "Do a patrol of the area and report anything unusual."
+#     interval_sec: 600
+
+# Web UI
+ui:
+  enabled: true
+  port: 8080
+
+# System prompt (optional — override the default)
+# system_prompt: |
+#   You are a helpful robot assistant...
