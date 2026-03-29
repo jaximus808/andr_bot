@@ -1,0 +1,51 @@
+# =============================================================================
+#  andr_bot.service — systemd unit for auto-starting the robot on Jetson boot
+# =============================================================================
+#
+#  Install:
+#    sudo cp andr_bot.service /etc/systemd/system/
+#    sudo systemctl daemon-reload
+#    sudo systemctl enable andr_bot
+#    sudo systemctl start andr_bot
+#
+#  Useful commands:
+#    sudo systemctl status andr_bot     # check if running
+#    sudo systemctl stop andr_bot       # stop the stack
+#    sudo systemctl restart andr_bot    # restart after a crash
+#    journalctl -u andr_bot -f          # follow live logs
+#
+# =============================================================================
+
+[Unit]
+Description=ANDR Robot Stack
+# Wait for the network (web UI) and serial subsystem (ESP32)
+After=network.target dev-ttyUSB0.device
+Wants=dev-ttyUSB0.device
+
+[Service]
+Type=simple
+User=observer
+
+# Working directory
+WorkingDirectory=/home/observer/andr_bot
+
+# The startup script
+ExecStart=/home/observer/andr_bot/start_robot.sh
+
+# Always restart on failure, wait 10s between attempts
+Restart=on-failure
+RestartSec=10s
+
+# Give the stack 30s to shut down cleanly before force-killing
+TimeoutStopSec=30
+
+# Environment — ensure ROS and Python paths are available to the script
+Environment="HOME=/home/observer"
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# Forward stdout/stderr to journald (view with: journalctl -u andr_bot -f)
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

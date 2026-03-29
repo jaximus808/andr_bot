@@ -1,0 +1,110 @@
+# =============================================================================
+# robot_localization EKF configuration
+# =============================================================================
+# Fuses wheel encoder odometry (/odom) and IMU (/imu) into a smoothed
+# odom→base_link transform published on /odom/filtered.
+#
+# Sensor config arrays are 15 booleans:
+#   [x,  y,  z,
+#    ro, pi, ya,
+#    vx, vy, vz,
+#    vro,vpi,vya,
+#    ax, ay, az]
+#
+# true  = include this measurement in the filter
+# false = ignore it
+#
+# Note on LiDAR: scan-matching pose correction is handled upstream by
+# SLAM Toolbox (map→odom TF).  robot_localization only needs to smooth
+# the odom→base_link leg using wheel odom + IMU.
+# =============================================================================
+
+ekf_filter_node:
+  ros__parameters:
+
+    # ── Filter settings ───────────────────────────────────────────────────
+    frequency: 30.0            # EKF update/publish rate (Hz)
+    sensor_timeout: 0.1        # declare sensor stale after this many seconds
+    two_d_mode: true           # ignore z, roll, pitch (planar robot)
+    transform_time_offset: 0.0
+    transform_timeout: 0.0
+    print_diagnostics: true
+    debug: false
+
+    # ── Frame IDs ─────────────────────────────────────────────────────────
+    map_frame:       map
+    odom_frame:      odom
+    base_link_frame: base_link
+    world_frame:     odom      # output frame: EKF produces odom→base_link
+
+    # ── Wheel encoder odometry (/odom) ────────────────────────────────────
+    # The Gazebo diff-drive plugin publishes reliable vx and vyaw.
+    # We do NOT fuse absolute position (x, y) from wheel odom because it
+    # drifts; SLAM Toolbox handles absolute localisation via map→odom.
+    odom0: /odom
+    odom0_config: [false, false, false,
+                   false, false, false,
+                   true,  false, false,
+                   false, false, true,
+                   false, false, false]
+    odom0_queue_size: 5
+    odom0_nodelay: false
+    odom0_differential: false  # velocities are already in the odom frame
+    odom0_relative: false
+
+    # ── IMU (/imu) ────────────────────────────────────────────────────────
+    # Fuse yaw rate (vyaw) for smoother rotation estimates.
+    # Orientation (yaw) from the IMU can be enabled by setting index [5]
+    # to true, but requires a calibrated magnetometer.  Leave false for
+    # gyro-only fusion, which is safer indoors.
+    imu0: /imu
+    imu0_config: [false, false, false,
+                  false, false, false,
+                  false, false, false,
+                  false, false, true,
+                  false, false, false]
+    imu0_queue_size: 10
+    imu0_nodelay: false
+    imu0_differential: false
+    imu0_relative: false
+    imu0_remove_gravitational_acceleration: true
+
+    # ── Process noise covariance (Q) ──────────────────────────────────────
+    # 15×15 row-major matrix.  Only the diagonal matters here; off-diagonal
+    # terms are zero for uncorrelated process noise.
+    # Increase a diagonal entry if the filter lags behind fast motion.
+    # Decrease it if the output is noisy.
+    process_noise_covariance: [0.05,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,    0.0,    0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,  0.05,  0.0,  0.0,  0.0,  0.0,  0.0,    0.0,    0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0, 0.06,  0.0,  0.0,  0.0,  0.0,    0.0,    0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0, 0.03,  0.0,  0.0,  0.0,    0.0,    0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0, 0.03,  0.0,  0.0,    0.0,    0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0, 0.06,  0.0,    0.0,    0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  0.0, 0.025,   0.0,    0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.025,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,    0.0,   0.04,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,    0.0,    0.0, 0.01,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,    0.0,    0.0,  0.0, 0.01,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,    0.0,    0.0,  0.0,  0.0, 0.02,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,    0.0,    0.0,  0.0,  0.0,  0.0, 0.01,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,    0.0,    0.0,  0.0,  0.0,  0.0,  0.0, 0.01,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,    0.0,    0.0,  0.0,  0.0,  0.0,  0.0,  0.0, 0.015]
+
+    # ── Initial estimate covariance (P0) ──────────────────────────────────
+    # Confidence in the initial state.  Robot starts at the origin with
+    # moderate uncertainty in position and low uncertainty in velocity.
+    initial_estimate_covariance: [1e-9, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                  0.0,  1e-9, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                  0.0,  0.0,  1e-9, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                  0.0,  0.0,  0.0,  1e-9, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                  0.0,  0.0,  0.0,  0.0,  1e-9, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                  0.0,  0.0,  0.0,  0.0,  0.0,  1e-9, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  1e-9, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  1e-9, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  1e-9, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  1e-9, 0.0,  0.0,  0.0,  0.0,  0.0,
+                                  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  1e-9, 0.0,  0.0,  0.0,  0.0,
+                                  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  1e-9, 0.0,  0.0,  0.0,
+                                  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  1e-9, 0.0,  0.0,
+                                  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  1e-9, 0.0,
+                                  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  1e-9]
