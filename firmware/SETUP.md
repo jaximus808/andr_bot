@@ -11,11 +11,10 @@ The onboard LED (GPIO 2) turns **on** when connected to the agent and
 
 ## 1. Install PlatformIO
 
-```bash
-# Install PlatformIO CLI (pip)
-pip install platformio
+Use the official installer — **do not use `pip install platformio`** as it
+won't create the penv that the micro-ROS build scripts depend on.
 
-# OR via the official installer
+```bash
 curl -fsSL -o get-platformio.py https://raw.githubusercontent.com/platformio/platformio-core-installer/master/get-platformio.py
 python3 get-platformio.py
 ```
@@ -27,12 +26,36 @@ pio --version
 
 ---
 
-## 2. Build the Firmware
+## 2. Install micro-ROS Build Dependencies
+
+The micro-ROS library compiles from source and requires specific Python
+packages in PlatformIO's internal penv. Install them before the first build:
 
 ```bash
-cd /home/observer/andr_test/my_robot_2/firmware
+~/.platformio/penv/bin/pip install \
+  catkin-pkg \
+  lark-parser \
+  colcon-common-extensions \
+  importlib-resources \
+  pyyaml \
+  pytz \
+  "markupsafe==2.0.1" \
+  "empy==3.3.4" \
+  --force-reinstall empy==3.3.4
+```
 
-# First build downloads the ESP32 toolchain + micro-ROS library (~5 min)
+> **Note:** `empy` must be version 3.3.4. Version 4.x has a breaking API
+> change that causes the ROS 2 code-generation tools to fail. The
+> `--force-reinstall` flag ensures any existing newer version is replaced.
+
+---
+
+## 3. Build the Firmware
+
+```bash
+cd firmware/
+
+# First build downloads the ESP32 toolchain + compiles micro-ROS (~10 min)
 pio run
 ```
 

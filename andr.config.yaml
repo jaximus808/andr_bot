@@ -6,7 +6,7 @@
 # LLM settings
 llm:
   backend: ollama            # ollama | openai
-  model: llama3.2            # model name
+  model: qwen2.5          # model name
   host: http://localhost:11434
   temperature: 0.2
 
