@@ -407,7 +407,7 @@ bool create_entities() {
 
 void destroy_entities() {
     rmw_context_t *rmw_ctx = rcl_context_get_rmw_context(&support.context);
-    (void)rmw_uros_set_context_entity_destroy_session_stream(rmw_ctx);
+    (void)rmw_uros_set_context_entity_destroy_session_timeout(rmw_ctx, 0);
 
     rclc_executor_fini(&executor);
     rcl_timer_fini(&odom_timer);
