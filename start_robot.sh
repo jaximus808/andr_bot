@@ -4,11 +4,12 @@
 # =============================================================================
 #
 #  Launches in order:
-#    1. micro-ROS agent    — bridges ESP32 serial (USB) to ROS 2
-#    2. robot_state_publisher — publishes TF tree from URDF
-#    3. SLAM Toolbox       — lidar-based mapping / localisation (map→odom TF)
-#    4. Nav2               — path planning and navigation
-#    5. ANDR stack         — agent, tools, lidar node, EKF, web UI
+#    1. andr_bringup launch — micro-ROS, RSP, RPLIDAR, EKF, SLAM, Nav2
+#    2. ANDR stack          — agent, tools, managers, web UI
+#
+#  The ROS 2 navigation stack (micro-ROS agent, robot_state_publisher,
+#  RPLIDAR, EKF, SLAM Toolbox, Nav2) is launched via:
+#    ros2 launch andr_bringup robot.launch.py
 #
 #  All processes are tracked.  Ctrl-C or SIGTERM cleanly stops everything.
 #
@@ -34,21 +35,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROS_DISTRO="humble"
 ROS_SETUP="/opt/ros/${ROS_DISTRO}/setup.bash"
 
-# ROS workspace (built with colcon — contains robot_localization, rplidar_ros, etc.)
+# ROS workspace (built with colcon — contains andr_bringup, robot_localization,
+# rplidar_ros, micro_ros_agent, etc.)
 # Change this if your workspace is elsewhere.
 WORKSPACE_SETUP="${HOME}/ros2_ws/install/setup.bash"
 
-# Serial port the ESP32 is connected to.
-# Run: ls /dev/ttyUSB* /dev/ttyACM*  after plugging in, to confirm.
+# micro-ROS serial port / baud — passed to the launch file
 MICRO_ROS_PORT="/dev/ttyUSB0"
 MICRO_ROS_BAUD="115200"
 
-# URDF xacro path (used by robot_state_publisher)
-XACRO_FILE="${SCRIPT_DIR}/robot/description/robot.urdf.xacro"
-
-# Nav2 and SLAM config (real-hardware variants — use_sim_time: False)
-NAV2_PARAMS="${SCRIPT_DIR}/robot/config/nav2_params_real.yaml"
-SLAM_PARAMS="${SCRIPT_DIR}/robot/config/slam_toolbox_params_real.yaml"
+# RPLIDAR serial port / baud — passed to the launch file
+LIDAR_SERIAL_PORT="/dev/rplidar"
+LIDAR_BAUDRATE="115200"
 
 # Log directory
 LOG_DIR="${SCRIPT_DIR}/logs"
@@ -82,20 +80,6 @@ cleanup() {
 
 trap cleanup EXIT SIGINT SIGTERM
 
-wait_for_topic() {
-    local topic="$1"
-    local timeout="${2:-30}"
-    log "Waiting for topic ${topic} (timeout ${timeout}s)..."
-    for (( i=0; i<timeout; i++ )); do
-        if ros2 topic info "${topic}" &>/dev/null; then
-            log "Topic ${topic} is live."
-            return 0
-        fi
-        sleep 1
-    done
-    log "WARNING: ${topic} not seen after ${timeout}s — continuing anyway."
-}
-
 # ── Source ROS environment ────────────────────────────────────────────────────
 
 if [[ ! -f "${ROS_SETUP}" ]]; then
@@ -111,75 +95,36 @@ else
     log "         Run: cd ~/ros2_ws && colcon build --symlink-install"
 fi
 
-# ── 1. micro-ROS agent ────────────────────────────────────────────────────────
-# Bridges the ESP32 (micro-ROS) serial connection to ROS 2.
-# Publishes: /odom, /imu
-# Subscribes: /cmd_vel
+# ── 1. andr_bringup launch ──────────────────────────────────────────────────
+# Launches the full ROS 2 navigation stack via a single launch file:
+#   micro-ROS agent → robot_state_publisher → RPLIDAR → EKF → SLAM → Nav2
+#
+# The launch file reads ~/andr_maps/slam_config.json to determine whether to
+# start in mapping or localization mode (and which map to load).
 
-log "Starting micro-ROS agent on ${MICRO_ROS_PORT} @ ${MICRO_ROS_BAUD} baud..."
+log "Starting andr_bringup (micro-ROS, RSP, lidar, EKF, SLAM, Nav2)..."
 
-ros2 run micro_ros_agent micro_ros_agent serial \
-    --dev "${MICRO_ROS_PORT}" \
-    --baudrate "${MICRO_ROS_BAUD}" \
-    >> "${LOG_DIR}/micro_ros_agent.log" 2>&1 &
-
-PIDS+=($!)
-sleep 3   # give the agent time to open the serial port before the ESP32 connects
-
-# ── 2. Robot state publisher ─────────────────────────────────────────────────
-# Reads the URDF xacro and publishes all TF frames (base_link→lidar_link, etc.)
-# Nav2 and SLAM Toolbox depend on this being up first.
-
-log "Starting robot_state_publisher..."
-
-ROBOT_DESC=$(xacro "${XACRO_FILE}")
-
-ros2 run robot_state_publisher robot_state_publisher \
-    --ros-args \
-    -p "robot_description:=${ROBOT_DESC}" \
-    -p "use_sim_time:=false" \
-    >> "${LOG_DIR}/rsp.log" 2>&1 &
+ros2 launch andr_bringup robot.launch.py \
+    use_sim_time:=false \
+    micro_ros_port:="${MICRO_ROS_PORT}" \
+    micro_ros_baud:="${MICRO_ROS_BAUD}" \
+    lidar_serial_port:="${LIDAR_SERIAL_PORT}" \
+    lidar_baudrate:="${LIDAR_BAUDRATE}" \
+    launch_rviz:=false \
+    >> "${LOG_DIR}/andr_bringup.log" 2>&1 &
 
 PIDS+=($!)
-wait_for_topic /robot_description 15
 
-# ── 3. SLAM Toolbox ───────────────────────────────────────────────────────────
-# Builds and maintains the map using /scan.
-# Publishes: /map, map→odom TF
-# Depends on: /scan (from lidar runnable, started by ANDR), TF from RSP
+# Wait for the navigation stack to initialize before starting ANDR
+log "Waiting for navigation stack to initialize..."
+sleep 8
 
-log "Starting SLAM Toolbox (mapping mode)..."
-
-ros2 run slam_toolbox async_slam_toolbox_node \
-    --ros-args \
-    --params-file "${SLAM_PARAMS}" \
-    -p "use_sim_time:=false" \
-    >> "${LOG_DIR}/slam_toolbox.log" 2>&1 &
-
-PIDS+=($!)
-sleep 2
-
-# ── 4. Nav2 ───────────────────────────────────────────────────────────────────
-# Path planning and navigation stack.
-# Depends on: /odom/filtered (EKF), /scan, /map, TF tree
-
-log "Starting Nav2..."
-
-ros2 launch nav2_bringup navigation_launch.py \
-    use_sim_time:=False \
-    params_file:="${NAV2_PARAMS}" \
-    >> "${LOG_DIR}/nav2.log" 2>&1 &
-
-PIDS+=($!)
-sleep 3
-
-# ── 5. ANDR stack ─────────────────────────────────────────────────────────────
-# Launches (auto-discovered):
-#   runnables/lidar.py          — RPLIDAR node → /scan
-#   runnables/sensor_fusion.py  — robot_localization EKF → /odom/filtered
+# ── 2. ANDR stack ────────────────────────────────────────────────────────────
+# Launches (auto-discovered by start.py):
 #   managers/map_server.py      — waypoint / map management
 #   tools/walk.py, spin.py, navigate_to_point.py
 #   inputs/web_ui.py            — web dashboard on :8080
+#   runnables/                  — any standalone processes
 
 log "Starting ANDR stack..."
 
