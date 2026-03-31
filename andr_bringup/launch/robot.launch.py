@@ -4,7 +4,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PythonExpression
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
@@ -27,14 +27,13 @@ def _load_slam_config():
 
 
 def generate_launch_description():
-    pkg_share = get_package_share_directory("andr_sim")
-    gazebo_ros_share = get_package_share_directory("gazebo_ros")
+    # Update this to your actual hardware bringup package name
+    pkg_share = get_package_share_directory("andr_bringup")
     nav2_bringup_share = get_package_share_directory("nav2_bringup")
 
     # Load persisted SLAM config so defaults match the last UI selection
     _cfg_map_file, _cfg_localization = _load_slam_config()
 
-    world_file   = LaunchConfiguration("world")
     use_sim_time = LaunchConfiguration("use_sim_time")
     localization = LaunchConfiguration("localization")
     map_file     = LaunchConfiguration("map_file")
@@ -48,35 +47,37 @@ def generate_launch_description():
         launch_arguments={"use_sim_time": use_sim_time}.items(),
     )
 
-    # ── Gazebo server + client ────────────────────────────────────────────
-    gazebo_params = os.path.join(pkg_share, "config", "gazebo_params.yaml")
+    # ── Sensor Drivers & Hardware Interface ───────────────────────────────
+    # Depending on your setup, you'll want to launch your hardware drivers here
+    # (e.g., LiDAR, micro-ROS agent for motor controllers/IMU, etc.)
+    # 
+    # hardware_bringup = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource(
+    #         os.path.join(pkg_share, "launch", "hardware.launch.py")
+    #     )
+    # )
 
-    gazebo = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(gazebo_ros_share, "launch", "gazebo.launch.py")
-        ),
-        launch_arguments={
-            "world": world_file,
-            "extra_gazebo_args": "--ros-args --params-file " + gazebo_params,
-        }.items(),
-    )
-
-    # ── Spawn the robot ───────────────────────────────────────────────────
-    spawn_entity = Node(
-        package="gazebo_ros",
-        executable="spawn_entity.py",
-        arguments=[
-            "-topic", "robot_description",
-            "-entity", "andr",
-            "-x", "0.0",
-            "-y", "0.0",
-            "-z", "0.1",
-        ],
+    # ── Robot Localization (EKF) ──────────────────────────────────────────
+    # Fuses IMU, Encoders (odom), and potentially SLAM pose data
+    ekf_config = os.path.join(pkg_share, "config", "ekf.yaml")
+    
+    ekf_node = Node(
+        package="robot_localization",
+        executable="ekf_node",
+        name="ekf_filter_node",
         output="screen",
+        parameters=[
+            ekf_config, 
+            {"use_sim_time": use_sim_time}
+        ],
+        remappings=[
+            # Remap outputs if necessary, e.g., mapping to a specific odom topic
+            # ("odometry/filtered", "odom") 
+        ]
     )
 
     # ── RViz ─────────────────────────────────────────────────────────────
-    rviz_config = os.path.join(pkg_share, "config", "sim.rviz")
+    rviz_config = os.path.join(pkg_share, "config", "hardware.rviz")
 
     rviz = Node(
         package="rviz2",
@@ -84,12 +85,12 @@ def generate_launch_description():
         name="rviz2",
         output="screen",
         arguments=["-d", rviz_config],
-        parameters=[{"use_sim_time": True}],
+        parameters=[{"use_sim_time": use_sim_time}],
     )
 
     # ── SLAM Toolbox: mapping mode (default) ──────────────────────────────
     slam_mapping_params = os.path.join(
-        pkg_share, "config", "slam_toolbox_params.yaml"
+        pkg_share, "config", "slam_toolbox_params_real.yaml"
     )
 
     slam_mapping = Node(
@@ -97,13 +98,16 @@ def generate_launch_description():
         executable="async_slam_toolbox_node",
         name="slam_toolbox",
         output="screen",
-        parameters=[slam_mapping_params, {"use_sim_time": True}],
+        parameters=[
+            slam_mapping_params, 
+            {"use_sim_time": use_sim_time}
+        ],
         condition=UnlessCondition(localization),
     )
 
     # ── SLAM Toolbox: localization mode ───────────────────────────────────
     slam_localization_params = os.path.join(
-        pkg_share, "config", "slam_toolbox_localization_params.yaml"
+        pkg_share, "config", "slam_toolbox_localization_params_real.yaml"
     )
 
     slam_localization = Node(
@@ -114,7 +118,7 @@ def generate_launch_description():
         parameters=[
             slam_localization_params,
             {
-                "use_sim_time": True,
+                "use_sim_time": use_sim_time,
                 "map_file_name": map_file,
             },
         ],
@@ -128,46 +132,35 @@ def generate_launch_description():
         name="map_server",
         output="screen",
         parameters=[{
-            "use_sim_time": True,
+            "use_sim_time": use_sim_time,
             "slam_params_mapping": os.path.join(
-                pkg_share, "config", "slam_toolbox_params.yaml"
+                pkg_share, "config", "slam_toolbox_params_real.yaml"
             ),
             "slam_params_localization": os.path.join(
-                pkg_share, "config", "slam_toolbox_localization_params.yaml"
+                pkg_share, "config", "slam_toolbox_localization_params_real.yaml"
             ),
         }],
     )
 
     # ── Nav2 navigation stack ─────────────────────────────────────────────
-    # Uses nav2_bringup's navigation.launch.py which manages:
-    #   planner_server, controller_server, behavior_server,
-    #   bt_navigator, waypoint_follower, velocity_smoother,
-    #   smoother_server, lifecycle_manager_navigation
-    #
-    # The global costmap's static_layer subscribes to SLAM Toolbox's /map
-    # topic (transient_local QoS), so no separate map_server is needed.
-    nav2_params = os.path.join(pkg_share, "config", "nav2_params.yaml")
+    nav2_params = os.path.join(pkg_share, "config", "nav2_params_real.yaml")
 
     nav2 = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(nav2_bringup_share, "launch", "navigation_launch.py")
         ),
         launch_arguments={
-            "use_sim_time": "True",
+            "use_sim_time": use_sim_time,
             "params_file": nav2_params,
         }.items(),
         condition=IfCondition(launch_nav2),
     )
 
     return LaunchDescription([
+        # Default changed to false for real hardware
         DeclareLaunchArgument(
-            "use_sim_time", default_value="true",
+            "use_sim_time", default_value="false",
             description="Use simulation clock",
-        ),
-        DeclareLaunchArgument(
-            "world",
-            default_value=os.path.join(pkg_share, "worlds", "test_world.world"),
-            description="Path to Gazebo world file",
         ),
         DeclareLaunchArgument(
             "localization", default_value=_cfg_localization,
@@ -190,8 +183,7 @@ def generate_launch_description():
         ),
 
         rsp,
-        gazebo,
-        spawn_entity,
+        ekf_node,
         slam_mapping,
         slam_localization,
         map_server,

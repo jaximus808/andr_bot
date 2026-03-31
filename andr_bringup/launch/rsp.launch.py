@@ -9,14 +9,14 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     use_sim_time = LaunchConfiguration("use_sim_time")
 
-    pkg_share = get_package_share_directory("andr_sim")
+    pkg_share = get_package_share_directory("andr_bringup")
     xacro_file = os.path.join(pkg_share, "description", "robot.urdf.xacro")
 
     robot_description = Command(["xacro ", xacro_file])
 
     return LaunchDescription([
         DeclareLaunchArgument(
-            "use_sim_time", default_value="true",
+            "use_sim_time", default_value="false",
             description="Use simulation clock",
         ),
 
