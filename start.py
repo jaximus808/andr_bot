@@ -56,6 +56,7 @@ def main():
     agent = config.get("agent", {})
     ui = config.get("ui", {})
     brain = config.get("brain", {})
+    memory = config.get("memory", {})
 
     # Build andr start args (core stack only — no UI, tools come from local dirs)
     start_args = [
@@ -82,6 +83,15 @@ def main():
     # Set UI port as env var for inputs/web_ui.py
     os.environ["ANDR_UI_PORT"] = str(ui.get("port", 8080))
 
+    # Set memory config as env vars for tools that use ChromaDB
+    os.environ["ANDR_MEMORY_BACKEND"] = memory.get("backend", "chroma")
+    os.environ["ANDR_MEMORY_PERSIST_PATH"] = os.path.expanduser(
+        memory.get("persist_path", "/tmp/andr_memory")
+    )
+    os.environ["ANDR_MEMORY_COLLECTION"] = memory.get("collection_name", "andr")
+    os.environ["ANDR_MEMORY_EMBEDDING_MODEL"] = memory.get("embedding_model", "all-MiniLM-L6-v2")
+    os.environ["ANDR_MEMORY_TOP_K"] = str(memory.get("top_k", 4))
+
     # Discover managers, tools, inputs, and runnables
     manager_files = discover_modules("managers")
     tool_files = discover_modules("tools")
@@ -97,8 +107,16 @@ def main():
         p.start()
         procs.append(p)
 
-    if manager_files:
-        time.sleep(2)  # Give managers time to register services
+    # Launch runnables (todo_manager, etc.) — tools may depend on them
+    for f in runnable_files:
+        fname = os.path.basename(f)
+        print(f"  Launching runnable: {fname}")
+        p = multiprocessing.Process(target=run_module, args=(f,), daemon=True)
+        p.start()
+        procs.append(p)
+
+    if manager_files or runnable_files:
+        time.sleep(2)  # Give managers/runnables time to register services
 
     # Launch tools
     for f in tool_files:
@@ -112,14 +130,6 @@ def main():
     for f in input_files:
         fname = os.path.basename(f)
         print(f"  Launching input: {fname}")
-        p = multiprocessing.Process(target=run_module, args=(f,), daemon=True)
-        p.start()
-        procs.append(p)
-
-    # Launch runnables (standalone processes)
-    for f in runnable_files:
-        fname = os.path.basename(f)
-        print(f"  Launching runnable: {fname}")
         p = multiprocessing.Process(target=run_module, args=(f,), daemon=True)
         p.start()
         procs.append(p)

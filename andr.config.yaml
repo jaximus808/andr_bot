@@ -30,6 +30,14 @@ brain:
 #     prompt: "Do a patrol of the area and report anything unusual."
 #     interval_sec: 600
 
+# Memory (ChromaDB RAG store)
+memory:
+  backend: chroma                          # only "chroma" supported for now
+  persist_path: ~/andr_memory              # where ChromaDB stores data on disk
+  collection_name: andr                    # Chroma collection name
+  embedding_model: all-MiniLM-L6-v2       # SentenceTransformer model for embeddings
+  top_k: 4                                # default number of results to retrieve
+
 # Web UI
 ui:
   enabled: true
