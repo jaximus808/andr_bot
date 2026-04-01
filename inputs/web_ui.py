@@ -35,7 +35,7 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPo
 from std_msgs.msg import String
 from nav_msgs.msg import OccupancyGrid, Odometry
 from sensor_msgs.msg import LaserScan
-from geometry_msgs.msg import PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped, Twist
 
 from andr_msgs.msg import RobotSpeech
 from andr_msgs.srv import (
@@ -95,6 +95,9 @@ class WebUIInput(BaseInputSource):
         self._set_prompt_client = self.create_client(SetSystemPrompt, "prompt_manager/set_system_prompt")
         self._get_history_client = self.create_client(GetPromptHistory, "prompt_manager/get_prompt_history")
         self._list_tools_client = self.create_client(ListTools, "tool_manager/list")
+
+        # ── Teleop publisher ──────────────────────────────────────────
+        self._cmd_vel_pub = self.create_publisher(Twist, "cmd_vel", 10)
 
         # ── Node discovery timer ──────────────────────────────────────
         self._discovery_timer = self.create_timer(5.0, self._discover_nodes)
@@ -408,6 +411,15 @@ class WebUIInput(BaseInputSource):
         future.add_done_callback(_cb)
 
     # ==================================================================
+    # Teleop — publish cmd_vel from browser
+    # ==================================================================
+    def publish_cmd_vel(self, linear_x: float, angular_z: float):
+        twist = Twist()
+        twist.linear.x = float(linear_x)
+        twist.angular.z = float(angular_z)
+        self._cmd_vel_pub.publish(twist)
+
+    # ==================================================================
     # Node discovery
     # ==================================================================
     def _discover_nodes(self):
@@ -550,6 +562,11 @@ def _build_app(node: WebUIInput):
                     node.get_prompt_history()
                 elif msg_type == "get_tools":
                     node.get_tools()
+                elif msg_type == "cmd_vel":
+                    node.publish_cmd_vel(
+                        float(msg.get("linear_x", 0.0)),
+                        float(msg.get("angular_z", 0.0)),
+                    )
 
         except WebSocketDisconnect:
             clients.discard(ws)

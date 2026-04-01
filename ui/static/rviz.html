@@ -359,6 +359,162 @@
     #slam-status.ok  { color: #66bb6a; }
     #slam-status.err { color: #ef5350; }
 
+    /* ── Teleop controller ───────────────────────────────────────────── */
+    .teleop-mode-toggle {
+      display: flex;
+      gap: 0;
+      margin-bottom: 10px;
+    }
+    .teleop-mode-toggle button {
+      flex: 1;
+      padding: 6px 0;
+      background: #1c1c1c;
+      border: 1px solid #333;
+      color: #888;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .teleop-mode-toggle button:first-child {
+      border-radius: 6px 0 0 6px;
+    }
+    .teleop-mode-toggle button:last-child {
+      border-radius: 0 6px 6px 0;
+      border-left: none;
+    }
+    .teleop-mode-toggle button.active {
+      background: #1565c0;
+      color: #fff;
+      border-color: #1565c0;
+    }
+
+    /* WASD hint */
+    .teleop-wasd-hint {
+      font-size: 0.72rem;
+      color: #666;
+      text-align: center;
+      padding: 4px 0 8px;
+    }
+    .teleop-wasd-hint kbd {
+      display: inline-block;
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-family: 'Consolas', monospace;
+      font-size: 0.75rem;
+      color: #ccc;
+      min-width: 24px;
+      text-align: center;
+    }
+    .teleop-wasd-hint kbd.active {
+      background: #1565c0;
+      border-color: #42a5f5;
+      color: #fff;
+    }
+
+    .wasd-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      max-width: 160px;
+      margin: 0 auto 8px;
+    }
+    .wasd-grid .k {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 5px;
+      height: 38px;
+      font-family: 'Consolas', monospace;
+      font-size: 0.85rem;
+      color: #aaa;
+      user-select: none;
+    }
+    .wasd-grid .k.active {
+      background: #1565c0;
+      border-color: #42a5f5;
+      color: #fff;
+    }
+    .wasd-grid .k.empty {
+      background: transparent;
+      border: none;
+    }
+
+    /* Button controller */
+    .teleop-buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      max-width: 180px;
+      margin: 0 auto 8px;
+    }
+    .teleop-buttons button {
+      height: 48px;
+      background: #1c1c1c;
+      border: 1px solid #444;
+      border-radius: 8px;
+      color: #ccc;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      transition: background 0.1s, border-color 0.1s;
+    }
+    .teleop-buttons button:hover { background: #252525; }
+    .teleop-buttons button.pressed {
+      background: #1565c0;
+      border-color: #42a5f5;
+      color: #fff;
+    }
+    .teleop-buttons button.empty {
+      visibility: hidden;
+    }
+    .teleop-buttons .stop-btn {
+      background: #2a1a1a;
+      border-color: #5a2020;
+      color: #ef5350;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+    .teleop-buttons .stop-btn:hover { background: #3a1a1a; }
+
+    /* Speed slider */
+    .teleop-speed {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.72rem;
+      color: #888;
+      padding: 4px 0;
+    }
+    .teleop-speed input[type="range"] {
+      flex: 1;
+      accent-color: #42a5f5;
+    }
+    .teleop-speed .speed-val {
+      min-width: 42px;
+      text-align: right;
+      font-family: 'Consolas', monospace;
+      color: #aaa;
+    }
+
+    .teleop-status {
+      font-size: 0.68rem;
+      color: #555;
+      text-align: center;
+      min-height: 1.2em;
+      font-family: 'Consolas', monospace;
+    }
+    .teleop-status.active { color: #42a5f5; }
+
     /* ── Legend ──────────────────────────────────────────────────────── */
     .legend {
       display: flex;
@@ -477,6 +633,55 @@
 
       <button id="btn-apply-slam">Apply &amp; Restart SLAM</button>
       <div id="slam-status"></div>
+    </div>
+
+    <!-- Teleop Controller -->
+    <div class="sp-section" id="teleop-section">
+      <h3>Teleop Controller</h3>
+      <div class="teleop-mode-toggle">
+        <button id="teleop-mode-wasd" class="active">WASD</button>
+        <button id="teleop-mode-buttons">Buttons</button>
+      </div>
+
+      <!-- WASD mode -->
+      <div id="teleop-wasd-view">
+        <div class="wasd-grid">
+          <div class="k empty"></div>
+          <div class="k" id="key-w">W</div>
+          <div class="k empty"></div>
+          <div class="k" id="key-a">A</div>
+          <div class="k" id="key-s">S</div>
+          <div class="k" id="key-d">D</div>
+        </div>
+        <div class="teleop-wasd-hint">Hold keys to drive. <kbd>Space</kbd> to stop.</div>
+      </div>
+
+      <!-- Button mode -->
+      <div id="teleop-buttons-view" style="display:none;">
+        <div class="teleop-buttons">
+          <button class="empty"></button>
+          <button id="btn-fwd" data-lx="1" data-az="0">&#9650;</button>
+          <button class="empty"></button>
+          <button id="btn-left" data-lx="0" data-az="1">&#9664;</button>
+          <button class="stop-btn" id="btn-stop">STOP</button>
+          <button id="btn-right" data-lx="0" data-az="-1">&#9654;</button>
+          <button class="empty"></button>
+          <button id="btn-bwd" data-lx="-1" data-az="0">&#9660;</button>
+          <button class="empty"></button>
+        </div>
+      </div>
+
+      <div class="teleop-speed">
+        <span>Speed</span>
+        <input type="range" id="teleop-linear-speed" min="0.05" max="1.0" step="0.05" value="0.3" />
+        <span class="speed-val" id="teleop-linear-val">0.30</span>
+      </div>
+      <div class="teleop-speed">
+        <span>Turn&nbsp;</span>
+        <input type="range" id="teleop-angular-speed" min="0.1" max="2.0" step="0.1" value="0.8" />
+        <span class="speed-val" id="teleop-angular-val">0.80</span>
+      </div>
+      <div class="teleop-status" id="teleop-status">idle</div>
     </div>
 
     <div class="sp-section" style="padding-bottom:4px;">
@@ -1422,6 +1627,10 @@ function handleMessage(msg) {
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
+  // Skip map shortcuts for keys used by teleop WASD
+  const key = e.key.toLowerCase();
+  if (typeof teleopMode !== 'undefined' && teleopMode === 'wasd' && ['w','a','s','d',' '].includes(key)) return;
+
   switch(e.key) {
     case 'f': case 'F': fitMap(); break;
     case '=': case '+': document.getElementById('btn-zoom-in').click(); break;
@@ -1515,6 +1724,208 @@ btnApplySlam.addEventListener('click', () => {
     }));
   }
 });
+
+// ── Teleop Controller ───────────────────────────────────────────────────────
+const teleopModeWasd    = document.getElementById('teleop-mode-wasd');
+const teleopModeButtons = document.getElementById('teleop-mode-buttons');
+const teleopWasdView    = document.getElementById('teleop-wasd-view');
+const teleopButtonsView = document.getElementById('teleop-buttons-view');
+const teleopLinearSlider  = document.getElementById('teleop-linear-speed');
+const teleopAngularSlider = document.getElementById('teleop-angular-speed');
+const teleopLinearVal   = document.getElementById('teleop-linear-val');
+const teleopAngularVal  = document.getElementById('teleop-angular-val');
+const teleopStatusEl    = document.getElementById('teleop-status');
+
+let teleopMode = 'wasd'; // 'wasd' | 'buttons'
+let teleopLinearSpeed  = 0.3;
+let teleopAngularSpeed = 0.8;
+let teleopInterval = null;
+let teleopKeys = { w: false, a: false, s: false, d: false };
+
+// Mode toggle
+teleopModeWasd.addEventListener('click', () => {
+  teleopMode = 'wasd';
+  teleopModeWasd.classList.add('active');
+  teleopModeButtons.classList.remove('active');
+  teleopWasdView.style.display = '';
+  teleopButtonsView.style.display = 'none';
+  stopTeleop();
+});
+
+teleopModeButtons.addEventListener('click', () => {
+  teleopMode = 'buttons';
+  teleopModeButtons.classList.add('active');
+  teleopModeWasd.classList.remove('active');
+  teleopWasdView.style.display = 'none';
+  teleopButtonsView.style.display = '';
+  stopTeleop();
+});
+
+// Speed sliders
+teleopLinearSlider.addEventListener('input', () => {
+  teleopLinearSpeed = parseFloat(teleopLinearSlider.value);
+  teleopLinearVal.textContent = teleopLinearSpeed.toFixed(2);
+});
+teleopAngularSlider.addEventListener('input', () => {
+  teleopAngularSpeed = parseFloat(teleopAngularSlider.value);
+  teleopAngularVal.textContent = teleopAngularSpeed.toFixed(2);
+});
+
+// Send cmd_vel
+function sendCmdVel(lx, az) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'cmd_vel', linear_x: lx, angular_z: az }));
+  }
+}
+
+function stopTeleop() {
+  sendCmdVel(0, 0);
+  teleopStatusEl.textContent = 'idle';
+  teleopStatusEl.classList.remove('active');
+  // Clear key visuals
+  Object.keys(teleopKeys).forEach(k => {
+    teleopKeys[k] = false;
+    const el = document.getElementById('key-' + k);
+    if (el) el.classList.remove('active');
+  });
+  // Clear button visuals
+  document.querySelectorAll('.teleop-buttons button.pressed').forEach(b => b.classList.remove('pressed'));
+  if (teleopInterval) { clearInterval(teleopInterval); teleopInterval = null; }
+}
+
+function updateTeleopStatus(lx, az) {
+  if (lx === 0 && az === 0) {
+    teleopStatusEl.textContent = 'idle';
+    teleopStatusEl.classList.remove('active');
+  } else {
+    teleopStatusEl.textContent = `lx: ${lx.toFixed(2)}  az: ${az.toFixed(2)}`;
+    teleopStatusEl.classList.add('active');
+  }
+}
+
+// ── WASD keyboard handling ──────────────────────────────────────────────────
+function computeWasdVel() {
+  let lx = 0, az = 0;
+  if (teleopKeys.w) lx += teleopLinearSpeed;
+  if (teleopKeys.s) lx -= teleopLinearSpeed;
+  if (teleopKeys.a) az += teleopAngularSpeed;
+  if (teleopKeys.d) az -= teleopAngularSpeed;
+  return [lx, az];
+}
+
+function startWasdLoop() {
+  if (teleopInterval) return;
+  teleopInterval = setInterval(() => {
+    const [lx, az] = computeWasdVel();
+    sendCmdVel(lx, az);
+    updateTeleopStatus(lx, az);
+  }, 100); // 10 Hz
+}
+
+function stopWasdLoopIfIdle() {
+  const anyKey = Object.values(teleopKeys).some(v => v);
+  if (!anyKey && teleopInterval) {
+    clearInterval(teleopInterval);
+    teleopInterval = null;
+    sendCmdVel(0, 0);
+    updateTeleopStatus(0, 0);
+  }
+}
+
+// Intercept keyboard for WASD — override the existing keydown handler
+const _origKeydownHandlers = [];
+document.addEventListener('keydown', (e) => {
+  if (teleopMode !== 'wasd') return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+
+  const key = e.key.toLowerCase();
+  if (key === ' ') {
+    e.preventDefault();
+    stopTeleop();
+    return;
+  }
+
+  if (['w', 'a', 's', 'd'].includes(key)) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!teleopKeys[key]) {
+      teleopKeys[key] = true;
+      const el = document.getElementById('key-' + key);
+      if (el) el.classList.add('active');
+      startWasdLoop();
+    }
+  }
+}, true); // capture phase to intercept before existing handlers
+
+document.addEventListener('keyup', (e) => {
+  if (teleopMode !== 'wasd') return;
+  const key = e.key.toLowerCase();
+  if (['w', 'a', 's', 'd'].includes(key)) {
+    teleopKeys[key] = false;
+    const el = document.getElementById('key-' + key);
+    if (el) el.classList.remove('active');
+    stopWasdLoopIfIdle();
+  }
+}, true);
+
+// Stop teleop when window loses focus
+window.addEventListener('blur', () => {
+  if (teleopMode === 'wasd') stopTeleop();
+});
+
+// ── Button controller (touch + mouse) ──────────────────────────────────────
+let activeBtnEl = null;
+let btnTeleopInterval = null;
+
+function startBtnDrive(btn) {
+  const lxSign = parseFloat(btn.dataset.lx) || 0;
+  const azSign = parseFloat(btn.dataset.az) || 0;
+  const lx = lxSign * teleopLinearSpeed;
+  const az = azSign * teleopAngularSpeed;
+
+  btn.classList.add('pressed');
+  activeBtnEl = btn;
+
+  sendCmdVel(lx, az);
+  updateTeleopStatus(lx, az);
+
+  if (btnTeleopInterval) clearInterval(btnTeleopInterval);
+  btnTeleopInterval = setInterval(() => {
+    sendCmdVel(lx, az);
+  }, 100);
+}
+
+function stopBtnDrive() {
+  if (activeBtnEl) {
+    activeBtnEl.classList.remove('pressed');
+    activeBtnEl = null;
+  }
+  if (btnTeleopInterval) {
+    clearInterval(btnTeleopInterval);
+    btnTeleopInterval = null;
+  }
+  sendCmdVel(0, 0);
+  updateTeleopStatus(0, 0);
+}
+
+['btn-fwd', 'btn-bwd', 'btn-left', 'btn-right'].forEach(id => {
+  const btn = document.getElementById(id);
+
+  // Mouse events
+  btn.addEventListener('mousedown', (e) => { e.preventDefault(); startBtnDrive(btn); });
+
+  // Touch events (mobile)
+  btn.addEventListener('touchstart', (e) => { e.preventDefault(); startBtnDrive(btn); });
+  btn.addEventListener('touchend', (e) => { e.preventDefault(); stopBtnDrive(); });
+  btn.addEventListener('touchcancel', (e) => { e.preventDefault(); stopBtnDrive(); });
+});
+
+document.addEventListener('mouseup', () => {
+  if (activeBtnEl) stopBtnDrive();
+});
+
+document.getElementById('btn-stop').addEventListener('mousedown', (e) => { e.preventDefault(); stopBtnDrive(); });
+document.getElementById('btn-stop').addEventListener('touchstart', (e) => { e.preventDefault(); stopBtnDrive(); });
 
 // ── Boot ────────────────────────────────────────────────────────────────────
 resizeCanvas();
