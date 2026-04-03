@@ -24,6 +24,7 @@ import json
 import math
 import os
 import queue
+import subprocess
 import threading
 import time
 import zlib
@@ -430,6 +431,95 @@ class WebUIInput(BaseInputSource):
         self._push({"type": "node_status", "nodes": nodes, "action_servers": actions})
 
     # ==================================================================
+    # Software updates (git-based)
+    # ==================================================================
+    _REPOS = {
+        "andr_bot": os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "andr": os.path.join(os.path.expanduser("~"), "andr"),
+    }
+
+    def check_updates(self):
+        """Fetch remotes and compare local vs origin/main for each repo."""
+        threading.Thread(target=self._check_updates_worker, daemon=True).start()
+
+    def _check_updates_worker(self):
+        results = {}
+        for name, path in self._REPOS.items():
+            if not os.path.isdir(os.path.join(path, ".git")):
+                results[name] = {"available": False, "error": f"Not a git repo: {path}"}
+                continue
+            try:
+                subprocess.run(
+                    ["git", "fetch", "origin"],
+                    cwd=path, capture_output=True, text=True, timeout=30,
+                )
+                local = subprocess.run(
+                    ["git", "rev-parse", "HEAD"],
+                    cwd=path, capture_output=True, text=True, timeout=10,
+                ).stdout.strip()
+                remote = subprocess.run(
+                    ["git", "rev-parse", "origin/main"],
+                    cwd=path, capture_output=True, text=True, timeout=10,
+                ).stdout.strip()
+
+                if local == remote:
+                    results[name] = {"available": False, "local": local[:8], "remote": remote[:8]}
+                else:
+                    # Get log of new commits
+                    log = subprocess.run(
+                        ["git", "log", "--oneline", f"{local}..{remote}", "--max-count=10"],
+                        cwd=path, capture_output=True, text=True, timeout=10,
+                    ).stdout.strip()
+                    results[name] = {
+                        "available": True,
+                        "local": local[:8],
+                        "remote": remote[:8],
+                        "commits": log,
+                    }
+            except Exception as e:
+                results[name] = {"available": False, "error": str(e)}
+
+        self._push({"type": "update_check_result", "repos": results})
+
+    def install_update(self, repos: list):
+        """Pull latest for requested repos."""
+        threading.Thread(target=self._install_update_worker, args=(repos,), daemon=True).start()
+
+    def _install_update_worker(self, repos: list):
+        results = {}
+        for name in repos:
+            path = self._REPOS.get(name)
+            if not path:
+                results[name] = {"success": False, "error": f"Unknown repo: {name}"}
+                continue
+            try:
+                pull = subprocess.run(
+                    ["git", "pull", "origin", "main"],
+                    cwd=path, capture_output=True, text=True, timeout=60,
+                )
+                if pull.returncode != 0:
+                    results[name] = {"success": False, "error": pull.stderr.strip() or pull.stdout.strip()}
+                    continue
+
+                # If andr was updated, reinstall the pip package
+                if name == "andr":
+                    pip_dir = os.path.join(path, "pip")
+                    if os.path.isdir(pip_dir):
+                        pip_result = subprocess.run(
+                            ["pip", "install", "-e", pip_dir],
+                            capture_output=True, text=True, timeout=120,
+                        )
+                        if pip_result.returncode != 0:
+                            results[name] = {"success": False, "error": "git pull OK but pip install failed: " + pip_result.stderr.strip()}
+                            continue
+
+                results[name] = {"success": True, "output": pull.stdout.strip()}
+            except Exception as e:
+                results[name] = {"success": False, "error": str(e)}
+
+        self._push({"type": "update_install_result", "repos": results})
+
+    # ==================================================================
     # Helpers
     # ==================================================================
     def _relay(self, future, event_type, refresh_maps=False):
@@ -567,6 +657,12 @@ def _build_app(node: WebUIInput):
                         float(msg.get("linear_x", 0.0)),
                         float(msg.get("angular_z", 0.0)),
                     )
+                elif msg_type == "check_updates":
+                    node.check_updates()
+                elif msg_type == "install_update":
+                    repos = msg.get("repos", [])
+                    if repos:
+                        node.install_update(repos)
 
         except WebSocketDisconnect:
             clients.discard(ws)

@@ -533,6 +533,166 @@
     }
     .history-entry.active { border-color: #4caf50; background: #1a2a1a; }
 
+    /* ── Software updates section ─────────────────────────────────── */
+    #check-updates-btn {
+      width: 100%;
+      background: #1565c0;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 0;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+    #check-updates-btn:hover  { background: #1976d2; }
+    #check-updates-btn:active { background: #0d47a1; }
+    #check-updates-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+    .update-repo {
+      background: #181818;
+      border: 1px solid #282828;
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-top: 8px;
+    }
+    .update-repo .repo-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .update-repo .repo-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: 'Consolas', 'Fira Code', monospace;
+    }
+    .update-repo .repo-badge {
+      font-size: 0.68rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .update-repo .repo-badge.up-to-date { background: #1b3a1b; color: #66bb6a; }
+    .update-repo .repo-badge.available  { background: #3a2a00; color: #ffa726; }
+    .update-repo .repo-badge.error      { background: #3a1a1a; color: #ef5350; }
+    .update-repo .repo-commits {
+      font-size: 0.7rem;
+      font-family: 'Consolas', 'Fira Code', monospace;
+      color: #999;
+      margin-top: 4px;
+      white-space: pre-wrap;
+      max-height: 100px;
+      overflow-y: auto;
+    }
+    .update-repo .repo-hashes {
+      font-size: 0.65rem;
+      color: #555;
+      margin-top: 2px;
+    }
+
+    #update-actions {
+      display: none;
+      margin-top: 8px;
+    }
+    #install-update-btn {
+      width: 100%;
+      background: #e65100;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 0;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+    #install-update-btn:hover  { background: #ef6c00; }
+    #install-update-btn:active { background: #bf360c; }
+    #install-update-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+    .update-warning {
+      font-size: 0.7rem;
+      color: #ffa726;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    #update-status-msg {
+      font-size: 0.72rem;
+      margin-top: 6px;
+      min-height: 16px;
+    }
+    #update-status-msg.success { color: #81c784; }
+    #update-status-msg.error   { color: #ef9a9a; }
+    #update-status-msg.loading { color: #ffcc80; }
+
+    /* ── Update confirmation modal ───────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.visible { display: flex; }
+    .modal-box {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 24px;
+      max-width: 420px;
+      width: 90%;
+    }
+    .modal-box h3 {
+      font-size: 1rem;
+      margin-bottom: 12px;
+      color: #e0e0e0;
+    }
+    .modal-box p {
+      font-size: 0.85rem;
+      color: #bbb;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+    .modal-box .modal-repos {
+      font-size: 0.8rem;
+      font-family: 'Consolas', 'Fira Code', monospace;
+      color: #ffa726;
+      margin-bottom: 12px;
+    }
+    .modal-box .modal-warning {
+      font-size: 0.78rem;
+      color: #ef5350;
+      margin-bottom: 16px;
+    }
+    .modal-btn-row {
+      display: flex;
+      gap: 8px;
+    }
+    .modal-btn-row button {
+      flex: 1;
+      padding: 8px 0;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    #modal-confirm {
+      background: #e65100;
+      color: #fff;
+    }
+    #modal-confirm:hover { background: #ef6c00; }
+    #modal-cancel {
+      background: #333;
+      color: #ccc;
+    }
+    #modal-cancel:hover { background: #444; }
+
   </style>
 </head>
 <body>
@@ -648,6 +808,16 @@
         <button id="load-map-btn">Load Map</button>
         <div id="slam-status-msg"></div>
       </div>
+      <div class="status-section" id="updates-section">
+        <h3>Software Updates</h3>
+        <button id="check-updates-btn">Check for Updates</button>
+        <div id="update-results"></div>
+        <div id="update-actions">
+          <button id="install-update-btn">Install Updates</button>
+          <div class="update-warning">Restart required after installing updates.</div>
+        </div>
+        <div id="update-status-msg"></div>
+      </div>
       <div class="status-section">
         <h3>Nodes</h3>
         <div id="node-list"><span class="status-empty">Discovering...</span></div>
@@ -659,6 +829,20 @@
     </div>
   </div>
 
+</div>
+
+<!-- Update confirmation modal -->
+<div class="modal-overlay" id="update-modal">
+  <div class="modal-box">
+    <h3>Install Updates?</h3>
+    <p>The following repos have updates available:</p>
+    <div class="modal-repos" id="modal-repo-list"></div>
+    <div class="modal-warning">The robot will need to be restarted after the update completes.</div>
+    <div class="modal-btn-row">
+      <button id="modal-cancel">Cancel</button>
+      <button id="modal-confirm">Install &amp; Restart Later</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -928,6 +1112,14 @@
 
       case 'tools_list':
         renderTools(msg.tools || []);
+        break;
+
+      case 'update_check_result':
+        handleUpdateCheckResult(msg.repos || {});
+        break;
+
+      case 'update_install_result':
+        handleUpdateInstallResult(msg.repos || {});
         break;
 
       case 'node_status':
@@ -1250,6 +1442,149 @@
   }
 
   refreshToolsBtn.addEventListener('click', requestTools);
+
+  // ── Software updates ────────────────────────────────────────────────
+  const checkUpdatesBtn  = document.getElementById('check-updates-btn');
+  const updateResults    = document.getElementById('update-results');
+  const updateActions    = document.getElementById('update-actions');
+  const installUpdateBtn = document.getElementById('install-update-btn');
+  const updateStatusMsg  = document.getElementById('update-status-msg');
+  const updateModal      = document.getElementById('update-modal');
+  const modalRepoList    = document.getElementById('modal-repo-list');
+  const modalConfirm     = document.getElementById('modal-confirm');
+  const modalCancel      = document.getElementById('modal-cancel');
+
+  let updatableRepos = []; // repo names with available updates
+
+  function setUpdateStatus(text, cls) {
+    updateStatusMsg.textContent = text;
+    updateStatusMsg.className = cls || '';
+  }
+
+  checkUpdatesBtn.addEventListener('click', () => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      setUpdateStatus('Not connected', 'error');
+      return;
+    }
+    checkUpdatesBtn.disabled = true;
+    updateResults.innerHTML = '';
+    updateActions.style.display = 'none';
+    setUpdateStatus('Checking for updates...', 'loading');
+    ws.send(JSON.stringify({ type: 'check_updates' }));
+  });
+
+  function handleUpdateCheckResult(repos) {
+    checkUpdatesBtn.disabled = false;
+    updateResults.innerHTML = '';
+    updatableRepos = [];
+
+    for (const [name, info] of Object.entries(repos)) {
+      const el = document.createElement('div');
+      el.className = 'update-repo';
+
+      const header = document.createElement('div');
+      header.className = 'repo-header';
+
+      const repoName = document.createElement('span');
+      repoName.className = 'repo-name';
+      repoName.textContent = name;
+      header.appendChild(repoName);
+
+      const badge = document.createElement('span');
+      badge.className = 'repo-badge';
+
+      if (info.error) {
+        badge.classList.add('error');
+        badge.textContent = 'error';
+      } else if (info.available) {
+        badge.classList.add('available');
+        badge.textContent = 'update available';
+        updatableRepos.push(name);
+      } else {
+        badge.classList.add('up-to-date');
+        badge.textContent = 'up to date';
+      }
+      header.appendChild(badge);
+      el.appendChild(header);
+
+      if (info.local) {
+        const hashes = document.createElement('div');
+        hashes.className = 'repo-hashes';
+        hashes.textContent = `local: ${info.local}  remote: ${info.remote}`;
+        el.appendChild(hashes);
+      }
+
+      if (info.commits) {
+        const commits = document.createElement('div');
+        commits.className = 'repo-commits';
+        commits.textContent = info.commits;
+        el.appendChild(commits);
+      }
+
+      if (info.error) {
+        const err = document.createElement('div');
+        err.className = 'repo-commits';
+        err.style.color = '#ef9a9a';
+        err.textContent = info.error;
+        el.appendChild(err);
+      }
+
+      updateResults.appendChild(el);
+    }
+
+    if (updatableRepos.length > 0) {
+      updateActions.style.display = 'block';
+      setUpdateStatus('', '');
+    } else {
+      updateActions.style.display = 'none';
+      setUpdateStatus('Everything is up to date', 'success');
+    }
+  }
+
+  installUpdateBtn.addEventListener('click', () => {
+    if (updatableRepos.length === 0) return;
+    // Show confirmation modal
+    modalRepoList.textContent = updatableRepos.join(', ');
+    updateModal.classList.add('visible');
+  });
+
+  modalCancel.addEventListener('click', () => {
+    updateModal.classList.remove('visible');
+  });
+
+  modalConfirm.addEventListener('click', () => {
+    updateModal.classList.remove('visible');
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      setUpdateStatus('Not connected', 'error');
+      return;
+    }
+    installUpdateBtn.disabled = true;
+    setUpdateStatus('Installing updates...', 'loading');
+    ws.send(JSON.stringify({ type: 'install_update', repos: updatableRepos }));
+  });
+
+  function handleUpdateInstallResult(repos) {
+    installUpdateBtn.disabled = false;
+    let allOk = true;
+    const messages = [];
+    for (const [name, info] of Object.entries(repos)) {
+      if (info.success) {
+        messages.push(name + ': updated');
+      } else {
+        allOk = false;
+        messages.push(name + ': failed — ' + (info.error || 'unknown'));
+      }
+    }
+
+    if (allOk) {
+      setUpdateStatus('Updates installed. Please restart the robot.', 'success');
+      updateActions.style.display = 'none';
+      addLog('robot_status', 'Software updates installed — restart required');
+    } else {
+      setUpdateStatus(messages.join('; '), 'error');
+      addLog('error', 'Update install issues: ' + messages.join('; '));
+    }
+  }
 
   // ── Boot ─────────────────────────────────────────────────────────────
   connect();
